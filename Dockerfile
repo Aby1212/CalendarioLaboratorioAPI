@@ -1,32 +1,42 @@
-# Etapa 1: Build
-FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
+# Etapa 1: Build con Maven
+FROM maven:3.8.6-openjdk-11 AS build
 WORKDIR /app
 
-# Copiar todo el proyecto
-COPY . .
+# Copiar archivos de configuración de Maven
+COPY pom.xml .
+COPY mvnw .
+COPY mvnw.cmd .
+COPY .mvn .mvn
 
-# Navegar a la carpeta demo y restaurar dependencias
-WORKDIR /app/demo
-RUN dotnet restore
+# Dar permisos de ejecución al wrapper de Maven
+RUN chmod +x mvnw
 
-# Compilar y publicar
-RUN dotnet publish -c Release -o /app/publish
+# Descargar dependencias (esto se cachea si pom.xml no cambia)
+RUN ./mvnw dependency:go-offline -B
+
+# Copiar el código fuente
+COPY src ./src
+COPY Data ./Data
+COPY Entidades ./Entidades
+COPY Servicios ./Servicios
+
+# Compilar la aplicación
+RUN ./mvnw clean package -DskipTests
 
 # Etapa 2: Runtime
-FROM mcr.microsoft.com/dotnet/aspnet:6.0
+FROM openjdk:11-jre-slim
 WORKDIR /app
 
-# Copiar los archivos publicados
-COPY --from=build /app/publish .
+# Copiar el JAR compilado desde la etapa de build
+COPY --from=build /app/target/*.jar app.jar
 
-# Exponer puertos
-EXPOSE 80
-EXPOSE 443
+# Exponer el puerto (Spring Boot usa 8080 por defecto)
+EXPOSE 8080
 
 # Variables de entorno
-ENV ASPNETCORE_URLS=http://+:80
-ENV ASPNETCORE_ENVIRONMENT=Production
+ENV JAVA_OPTS="-Xmx512m -Xms256m"
+ENV SERVER_PORT=8080
 
 # Ejecutar la aplicación
-ENTRYPOINT ["dotnet", "demo.dll"]
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
 

@@ -11,8 +11,8 @@ phases:
       - echo "Container name is $CONTAINER_NAME"
       - echo "Checking project structure..."
       - ls -la
-      - echo "Checking demo folder..."
-      - ls -la demo/
+      - echo "Checking if pom.xml exists..."
+      - test -f pom.xml && echo "pom.xml found" || echo "pom.xml NOT found"
       - echo "Logging into ECR..."
       - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
       - REPOSITORY_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME
@@ -25,12 +25,12 @@ phases:
     commands:
       - echo "=== BUILD PHASE ==="
       - echo "Build started on $(date)"
-      - echo "Building the Docker image..."
+      - echo "Building the Docker image for Spring Boot application..."
       - docker build -t $REPOSITORY_URI:latest .
       - echo "Tagging image..."
       - docker tag $REPOSITORY_URI:latest $REPOSITORY_URI:$IMAGE_TAG
       - echo "Docker image built successfully"
-      - docker images
+      - docker images | grep $IMAGE_REPO_NAME
   
   post_build:
     commands:
@@ -49,3 +49,7 @@ artifacts:
   files: 
     - imagedefinitions.json
   name: BuildArtifact
+
+cache:
+  paths:
+    - '/root/.m2/**/*'
