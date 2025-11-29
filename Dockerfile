@@ -1,31 +1,32 @@
-# Usar imagen base de .NET SDK para compilar
+# Etapa 1: Build
 FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
-WORKDIR /src
+WORKDIR /app
 
-# Copiar archivo de proyecto y restaurar dependencias
-COPY demo/demo.csproj demo/
-RUN dotnet restore "demo/demo.csproj"
+# Copiar todo el proyecto
+COPY . .
 
-# Copiar todo el código fuente
-COPY demo/ demo/
+# Navegar a la carpeta demo y restaurar dependencias
+WORKDIR /app/demo
+RUN dotnet restore
 
 # Compilar y publicar
-WORKDIR /src/demo
-RUN dotnet build "demo.csproj" -c Release -o /app/build
-RUN dotnet publish "demo.csproj" -c Release -o /app/publish
+RUN dotnet publish -c Release -o /app/publish
 
-# Imagen final runtime
+# Etapa 2: Runtime
 FROM mcr.microsoft.com/dotnet/aspnet:6.0
 WORKDIR /app
+
+# Copiar los archivos publicados
 COPY --from=build /app/publish .
 
-# Exponer el puerto
+# Exponer puertos
 EXPOSE 80
 EXPOSE 443
 
-# Variables de entorno opcionales
+# Variables de entorno
 ENV ASPNETCORE_URLS=http://+:80
+ENV ASPNETCORE_ENVIRONMENT=Production
 
-# Punto de entrada
+# Ejecutar la aplicación
 ENTRYPOINT ["dotnet", "demo.dll"]
 
